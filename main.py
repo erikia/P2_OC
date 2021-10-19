@@ -1,9 +1,9 @@
-from typing import Text
 import requests
 from bs4 import BeautifulSoup
 import csv
 from csv import DictWriter
 from pathlib import Path
+from urllib.parse import urljoin
 
 
 main_url = 'http://books.toscrape.com/'
@@ -117,3 +117,9 @@ def img_download():
     urllib.requests.urlopen()
     enregistrere directement au format binaire  en mode écriture binaire
     """
+    f = open('', 'wb')
+    response = requests.get('https://books.toscrape.com/catalogue/')
+    f.write(response.content)
+    f.close()
+
+    print("download successful")
