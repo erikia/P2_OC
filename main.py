@@ -1,15 +1,13 @@
 from typing import Text
 import requests
 from bs4 import BeautifulSoup
+import csv
 from csv import DictWriter
 from pathlib import Path
 
 
-"""url = "https://books.toscrape.com/catalogue/a-light-in-the-attic_1000/index.html"
-response = requests.get(url)
-soup = BeautifulSoup(response.content, "html.parser")
-
-"""
+main_url = 'http://books.toscrape.com/'
+book_url = "https://books.toscrape.com/catalogue/a-light-in-the-attic_1000/index.html"
 
 
 def getdata(url):
@@ -21,21 +19,41 @@ def getdata(url):
 
 def get_categories_data(url_categories):
     """Fonction pour récupérer l'ensemble des catégories"""
-    url = getdata("https://books.toscrape.com/index.html")
+    soup = getdata(url)
     list_categories = []
-    if getdata.status_code == requests.codes.ok:
-    ul_cat = url.find_all("div", class_="side_categories").ul.ul
-    a_cat = url.find("a")
-       for cat in side_categories.find_all('a')["href"][1:]:
-            get_categories_data.append('https://books.toscrape.com/')
-        return get_categories_data
-    print(get_categories_data)
+    if soup.status_code == requests.codes.ok:
+        ul_cat = soup.find_all("div", class_="side_categories").ul.ul
+        for cat in ul_cat.find_all('a')["href"][1:]:
+            list_categories.append('https://books.toscrape.com/')
+        return list_categories
+    print(list_categories)
 
 
-
-def get_url_books(pages_parse):
+def get_url_books(list_categories):
     """Fonction pour récupérer l'ensemble des livres"""
-    return
+    list_book = []
+    category_urls = []
+    soup = getdata(url)
+    for book_list in list_categories:
+        if soup.status_code == requests.codes.ok:
+            category_urls.append(book_list)
+            for div in soup.select('h3', 'a')["href"]:
+                list_book.append('https://books.toscrape.com/catalogue/')
+        # pagination
+        while True:
+            response = requests.get(url)
+            soup = BeautifulSoup(response.text, "lxml")
+
+            footer_element = soup.select_one('li.current')
+            print(footer_element.text.strip())
+
+            next_page_element = soup.select_one('li.next > a')
+            if next_page_element:
+                next_page_url = next_page_element.get('href')
+                url = urljoin(url, next_page_url)
+            else:
+                break
+    return list_book
 
 
 def get_book_data(soup):
@@ -55,18 +73,47 @@ def get_book_data(soup):
         "div", {"class": "col-sm-6 product_main"}).find_all("p")[2]["class"][1]
     images = soup.find('img')['src']
     product_list = {
+        'product_page_url': page,
         'title': title.text,
-        'category': category.text,
-        'description': description,
-        'rating': rating,
-        'price_et': price_excluding_tax.text,
-        'price_it': price_including_tax.text,
         'upc': upc.text,
-        'stock': number_available.text,
-        'img': images,
-        'url': page, }
-    print("Opération terminé")
+        'price_including_tax': price_including_tax.text,
+        'price_excluding_tax': price_excluding_tax.text,
+        'number_available': number_available.text,
+        'review_rating': rating,
+        'product_description': description,
+        'category': category.text,
+        'url_image': images,
+    }
+    return product_list
 
 
+print("Opération terminé")
 
-get_book_data(soup)
+
+def convert_csv(filesdata):
+    """Fonction pour convertir le ficher en csv"""
+    with open("data.csv", "w") as csvfile:
+        data_names = [
+            'product_page_url',
+            'title',
+            'upc',
+            'price_including_tax',
+            'price_excluding_tax',
+            'number_available',
+            'review_rating',
+            'product_description',
+            'category',
+            'url_image',
+        ]
+        writer = cvs.DictWriter(csvfile, delimiter='|', filenames=data_names)
+        writer.writeheader()
+        for data in filesdata:
+            writer.writerow(data)
+    print(filesdata)
+
+
+def img_download():
+    """requests.get()
+    urllib.requests.urlopen()
+    enregistrere directement au format binaire  en mode écriture binaire
+    """
