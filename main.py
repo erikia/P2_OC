@@ -5,41 +5,26 @@ from csv import DictWriter
 from pathlib import Path
 
 
-url = ("http://books.toscrape.com/")
+#url = ("http://books.toscrape.com/")
 IMG_DIR = "data/img/"
 CSV_DIR = "data/csv/"
 
 
-def getdata(url):
-    """Fonction pour se connecter au site """
-    response = requests.get(url)
-    if response.ok:
-        soup = BeautifulSoup(response.content, "html.parser")
-        return soup
-    else:
-        print("Page erreur")
-        return False
+def category_url(url_first):
+    page = requests.get(url_first)
+    if page.status_code == requests.codes.ok:
+        soup = BeautifulSoup(page.content, 'html.parser')
+        side_categories = soup.find('div', class_='side_categories')
+        category_urls = []
+        for _ in side_categories.find_all('a')[1:]:
+            category_urls.append('https://books.toscrape.com/' + _.get('href'))
+        return category_urls
 
 
-def get_categories_urls(url_categories):
-    """Fonction pour récupérer l'ensemble des urls des catégories-x"""
-    soup = getdata(url_categories)
-    category_next_urls = []
-    list_categories = []
-    for _ in url_categories:
-        if soup.status_code == requests.codes.ok:
-            category_next_urls.append(_)
-        for div in soup.select('h3 a'):
-            list_categories.append(
-                'https://books.toscrape.com/catalogue/' + (div.get('href')[9:]))
-    return list_categories
-
-
-def get_url_books(url):
-    """Fonction pour récupérer l'ensemble des urls des  livres-x"""
-    list_categories = get_categories_urls(url)
+def category_urls_next(category_urls, urls_books):
+    """Fonction pour récupérer l'ensemble des urls des  livres"""
     urls_books = []
-    request = requests.get(url)
+    request = requests.get(category_urls)
     html = request.content
     soup = BeautifulSoup(html, features="html.parser")
     soup_books = soup.find_all("article", "product_pod")
@@ -62,13 +47,14 @@ def get_url_books(url):
             url_book = i.a["href"].replace("../", "")
             urls_books.append(url_book)
         next_page = soup.find("li", "next")
-
+    print(urls_books, category)
     return urls_books, category
 
 
 def get_book_data(soup):
     """Fonction pour analyser les données d'un livre"""
-    page = BeautifulSoup(soup.content, "html.parser")
+    soup = BeautifulSoup(soup.content, "html.parser")
+    page = category_urls_next(urls_books)
     tds = soup.find_all(["td"])
     title = soup.find("h1")
     upc = tds[0]
@@ -93,6 +79,7 @@ def get_book_data(soup):
         'category': category.text,
         'url_image': images,
     }
+    print(product_list)
     return product_list
 
 
@@ -119,25 +106,11 @@ def export_csv(filesdata):
 
 
 def main():
-    f = get_url_books(url)
-    print(f)
-
-
-"""     "Fonction principale"
-    url = "http://books.toscrape.com"
-    urls_category = get_categories_urls(url)
-    for url_category in urls_category:
-        books = []
-        url = f"http://books.toscrape.com/{url_category}"
-        print(url)
-        urls_book, category = get_url_books(url)
-        for url_book in urls_book:
-            url_book = f"http://books.toscrape.com/catalogue/{url_book}"
-            book = get_book_data(url_book)
-            book.category = category
-            books.append(book)
-        export_csv(books, category)
-        break """
+    url = 'https://books.toscrape.com/index.html'
+    a = category_url(url)
+    b = category_urls_next(a)
+    c = get_book_data(b)
+    print(c)
 
 
 if __name__ == '__main__':
