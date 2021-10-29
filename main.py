@@ -1,117 +1,119 @@
 import requests
 from bs4 import BeautifulSoup
 import csv
+import os
 from csv import DictWriter
-from pathlib import Path
 
+url_base = "http://books.toscrape.com/"
+special_characters = ['../', ';', '(', ')', '#', '']
 
-#url = ("http://books.toscrape.com/")
 IMG_DIR = "data/img/"
 CSV_DIR = "data/csv/"
 
 
-def category_url(url_first):
-    page = requests.get(url_first)
-    if page.status_code == requests.codes.ok:
-        soup = BeautifulSoup(page.content, 'html.parser')
-        side_categories = soup.find('div', class_='side_categories')
-        category_urls = []
-        for _ in side_categories.find_all('a')[1:]:
-            category_urls.append('https://books.toscrape.com/' + _.get('href'))
-        return category_urls
+def get_soup(url):
+    """Fonction pour appeler et analyser une page Web HTML """
+    url = "http://books.toscrape.com/"
+    request = requests.get(url)
+    if not request.ok:
+        print("Obtenu une page d'erreur")
+        return None
+    return BeautifulSoup(request.content, 'html.parser')
 
 
-def category_urls_next(category_urls, urls_books):
-    """Fonction pour récupérer l'ensemble des urls des  livres"""
-    urls_books = []
-    request = requests.get(category_urls)
-    html = request.content
-    soup = BeautifulSoup(html, features="html.parser")
-    soup_books = soup.find_all("article", "product_pod")
-
-    category = soup.find("h1").get_text()
-
-    for i in soup_books:
-        url_book = i.a["href"].replace("../", "")
-        urls_books.append(url_book)
-
-    next_page = soup.find("li", "next")
-    url = url.replace("index.html", "")
-    while next_page:
-        url_next_page = url + next_page.a["href"]
-        request = requests.get(url_next_page)
-        html = request.content
-        soup = BeautifulSoup(html, features="html.parser")
-        soup_books = soup.find_all("article", "product_pod")
-        for i in soup_books:
-            url_book = i.a["href"].replace("../", "")
-            urls_books.append(url_book)
-        next_page = soup.find("li", "next")
-    print(urls_books, category)
-    return urls_books, category
+def replace_special_characters(txt, special_characters):
+    """Fonction pour remplacer les caractères spéciaux"""
+    for special_character in special_characters:
+        return(txt.replace(special_character, ''))
 
 
-def get_book_data(soup):
-    """Fonction pour analyser les données d'un livre"""
-    soup = BeautifulSoup(soup.content, "html.parser")
-    page = category_urls_next(urls_books)
-    tds = soup.find_all(["td"])
-    title = soup.find("h1")
-    upc = tds[0]
-    price_excluding_tax = tds[2]
-    price_including_tax = tds[3]
-    number_available = tds[5]
-    description = soup.find("article").find_all(
-        "p")[3].get_text().replace(";", "/").strip()
-    category = soup.find("ul", {"class": "breadcrumb"}).find_all("li")[2]
-    rating = soup.find(
-        "div", {"class": "col-sm-6 product_main"}).find_all("p")[2]["class"][1]
-    images = soup.find('img')['src']
-    product_list = {
-        'product_page_url': page,
-        'title': title.text,
-        'upc': upc.text,
-        'price_including_tax': price_including_tax.text,
-        'price_excluding_tax': price_excluding_tax.text,
-        'number_available': number_available.text,
-        'review_rating': rating,
-        'product_description': description,
-        'category': category.text,
-        'url_image': images,
-    }
-    print(product_list)
-    return product_list
+def get_category_urls(categories_url):
+    """Fonction pour récupérer les liens de chaque catégories"""
+    categories_url = []
+    # Récupération des liens de chaque catégorie:
+    categories = get_soup(url_base).find_all('ul')[
+        2].find_all('li')
+
+    for category in categories:
+
+        # Création d'un dossier pour chaque catégorie
+        categorie_name = category.find('a').text.strip(' \n\t')
+        path = categorie_name
+        if not os.path.exists(categorie_name):
+            os.mkdir(categorie_name)
+
+        # Création d'un fichier csv avec les en-tête pour chaque catégorie dans les répertoires catégorie correspondant
+        with open(os.path.join(path, f'{categorie_name}.csv'), 'w', encoding='utf-8-sig') as file:
+            headers = ['product_page_url', 'universal_product_code', 'title', 'price_including_tax',
+                       'price_excluding_tax', 'number_available', 'product_description', 'category', 'review_rating', 'image_url']
+            file.write(';'.join(headers) + '\n')
+
+        # Récupération des urls des pages de chaque catégorie
+        category_url = url_base + category.find('a')['href']
+        categories_url = category_url.split(',')
+        next_botton = get_soup(category_url).find('li', class_='next')
+        while next_botton:
+            page = category_url.replace(
+                'index.html', '')+(next_botton.find('a')['href'])
+            next_botton = get_soup(page).find('li', class_='next')
+            categories_url.append(page)
+            continue
+            break
 
 
-def export_csv(filesdata):
-    """Fonction pour exporter le ficher en csv"""
-    with open("data.csv", "w") as csvfile:
-        data_names = [
-            'product_page_url',
-            'title',
-            'upc',
-            'price_including_tax',
-            'price_excluding_tax',
-            'number_available',
-            'review_rating',
-            'product_description',
-            'category',
-            'url_image',
-        ]
-        writer = csv.DictWriter(csvfile, delimiter='|', filenames=data_names)
-        writer.writeheader()
-        for data in filesdata:
-            writer.writerow(data)
-    print(filesdata)
+def get_book_data(categories_url):
+
+    # Récupération des urls des livres des pages de chaque catégorie
+    for page in categories_url:
+        books = get_soup(page).find_all(
+            'div', class_="image_container")
+        for book in books:
+            book_url = replace_special_characters(
+                ('https://books.toscrape.com/catalogue/' + book.find('a')['href']), special_characters)
+
+            # Obtenir les données demandées pour chaque livre
+            soup = get_soup(book_url)
+            data = soup.find_all(["td"])
+            product_page_url = book_url
+            universal_product_code = data[0].text
+            title = replace_special_characters(
+                (soup.find('h1').text), '/"-')
+            price_including_tax = data[3].text
+            price_excluding_tax = data[2].text
+            number_available = data[5].text
+
+            # Recherche si description livre et remplacer certains caractères
+            product_description = soup.find(
+                'div', id='product_description')
+            if product_description is None:
+                product_description = 'No description'
+            else:
+                product_description = replace_special_characters(
+                    (soup.find_all('p')[3].text), special_characters[1])
+
+            # Rechercher la note de cahque livre et la transformer en chiffre
+            star_rating = {'One': '1', 'Two': '2',
+                           'Three': '3', 'Four': '4', 'Five': '5'}
+            review_rating = star_rating[soup.find(
+                class_="star-rating")['class'][1]]
+
+            image_url = replace_special_characters(
+                (url_base + soup.find('img')['src']), special_characters)
+
+            valeurs = [product_page_url, universal_product_code, title, price_including_tax, price_excluding_tax,
+                       number_available, product_description, categorie_name, review_rating, image_url]
+
+            # Ajouter dans fichiers csv crées précédemment les données de chaque livre
+            with open(os.path.join(path, f'{categorie_name}.csv'), 'a', encoding='utf-8-sig') as file:
+                file.write(';'.join(valeurs) + '\n')
+
+            # télécharger les images dans répertoire de chaque catégorie
+            with open(os.path.join(path, f'{title}.jpg'), 'ab') as file:
+                image = requests.get(image_url).content
+                file.write(image)
 
 
-def main():
-    url = 'https://books.toscrape.com/index.html'
-    a = category_url(url)
-    b = category_urls_next(a)
-    c = get_book_data(b)
-    print(c)
-
-
-if __name__ == '__main__':
-    main()
+if __name__ == "__main__":
+    category = get_category_urls(url_base)
+    data = get_book_data(category)
+    print(data)
