@@ -83,51 +83,55 @@ def categories_url():
                 continue
                 break
 
-            # Récupération des urls des livres des pages de chaque catégorie
-            for page in categories_url:
-                books = get_soup(page).find_all(
-                    'div', class_="image_container")
-                for book in books:
-                    book_url = 'https://books.toscrape.com/catalogue/' + \
-                        book.find('a')['href']
-                    book_url = urljoin(
-                        'https://books.toscrape.com/catalogue', book_url)
 
-                    # Obtenir les données demandées pour chaque livre
-                    soup = get_soup(book_url)
-                    data = soup.find_all('td')
-                    product_page_url = book_url
-                    universal_product_code = data[0].text
-                    title = replace_special_characters(
-                        (soup.find('h1').text), '/"-')
-                    price_including_tax = data[3].text
-                    price_excluding_tax = data[2].text
-                    number_available = data[5].text
+def books_url():
+    # Récupération des urls des livres des pages de chaque catégorie
+    for page in categories_url:
+        books = get_soup(page).find_all(
+            'div', class_="image_container")
+        for book in books:
+            book_url = 'https://books.toscrape.com/catalogue/' + \
+                book.find('a')['href']
+            book_url = urljoin(
+                'https://books.toscrape.com/catalogue', book_url)
 
-                    # Recherche si description livre et remplacer certains caractères
-                    product_description = soup.find(
-                        'div', id='product_description')
-                    if product_description is None:
-                        product_description = 'No description'
-                    else:
-                        product_description = replace_special_characters(
-                            (soup.find_all('p')[3].text), special_characters[1])
+            # Obtenir les données demandées pour chaque livre
+            soup = get_soup(book_url)
+            data = soup.find_all('td')
+            product_page_url = book_url
+            universal_product_code = data[0].text
+            title = replace_special_characters(
+                (soup.find('h1').text), '/"-')
+            price_including_tax = data[3].text
+            price_excluding_tax = data[2].text
+            number_available = data[5].text
 
-                    # Rechercher la note de cahque livre et la transformer en chiffre
-                    review_rating = star_rating[soup.find(
-                        class_="star-rating")['class'][1]]
+            # Recherche si description livre et remplacer certains caractères
+            product_description = soup.find(
+                'div', id='product_description')
+            if product_description is None:
+                product_description = 'No description'
+            else:
+                product_description = replace_special_characters(
+                    (soup.find_all('p')[3].text), special_characters[1])
 
-                    image_url = replace_special_characters(
-                        (url_base + soup.find('img')['src']), special_characters)
+            # Rechercher la note de cahque livre et la transformer en chiffre
+            review_rating = star_rating[soup.find(
+                class_="star-rating")['class'][1]]
 
-                    product_list = [product_page_url, universal_product_code, title, price_including_tax, price_excluding_tax,
-                                    number_available, product_description, categorie_name, review_rating, image_url]
+            image_url = replace_special_characters(
+                (url_base + soup.find('img')['src']), special_characters)
 
-                    # Ajouter dans fichiers csv crées précédemment les données de chaque livre
-                    with open(os.path.join(path, f'{categorie_name}.csv'), 'a', encoding='utf-8-sig') as file:
-                        file.write(';'.join(product_list) + '\n')
+            product_list = [product_page_url, universal_product_code, title, price_including_tax, price_excluding_tax,
+                            number_available, product_description, categorie_name, review_rating, image_url]
 
-                    # télécharger les images dans répertoire de chaque catégorie
-                    with open(os.path.join(path, f'{title}.jpg'), 'ab') as file:
-                        image = requests.get(image_url).content
-                        file.write(image)
+
+def export & ():
+    # Ajouter dans fichiers csv crées précédemment les données de chaque livre
+    with open(os.path.join(path, f'{categorie_name}.csv'), 'a', encoding='utf-8-sig') as file:
+        file.write(';'.join(product_list) + '\n')
+
+    # télécharger les images dans répertoire de chaque catégorie
+    with open(os.path.join(path, f'{title}.jpg'), 'ab') as file:
+        image = requests.get(image_url).content
+        file.write(image)
