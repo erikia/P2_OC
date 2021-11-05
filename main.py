@@ -1,122 +1,145 @@
 import requests
 from bs4 import BeautifulSoup
 import csv
-import os
+from pathlib import Path
+from slugify import slugify
 
-url_base = "http://books.toscrape.com/"
-special_characters = ['../', ';', ":", '?', '#', '/', ')', '(', '']
-star_rating = {'One': '1', 'Two': '2', 'Three': '3', 'Four': '4', 'Five': '5'}
-
+URL_BASE = "http://books.toscrape.com/"
 IMG_DIR = "data/img/"
 CSV_DIR = "data/csv/"
 
 
 def get_soup(url):
     """Fonction pour appeler et analyser une page Web HTML """
-    response = requests.get(url)
-    if not response.ok:
+    url = "http://books.toscrape.com/"
+    request = requests.get(url)
+    if not request.ok:
         print("Obtenu une page d'erreur")
         return None
-    soup = BeautifulSoup(response.content, 'html.parser')
-    return(soup)
+    return BeautifulSoup(request.content, 'html.parser')
 
 
-def replace_special_characters(txt, special_characters):
-    """Fonction pour remplacer les caractères spéciaux"""
-    for special_character in special_characters:
-        return(txt.replace(special_character, ''))
-
-
-def get_category_urls():
+def get_category_urls(categories_url):
     """Fonction pour récupérer les liens de chaque catégories"""
-
     categories_url = []
-    # Récupération des liens de chaque catégorie:
-    categories = get_soup(url_base).find_all('ul')[2].find_all('li')
+    categories = get_soup(URL_BASE).find_all('ul')[
+        2].find_all('li')
 
     for category in categories:
-
-        # Création d'un dossier pour chaque catégorie
-        categorie_name = category.find('a').text.strip(' \n\t')
-        path = categorie_name
-        if not os.path.exists(categorie_name):
-            os.mkdir(categorie_name)
-
-        # Création d'un fichier csv avec les en-tête pour chaque catégorie dans les répertoires catégorie correspondant
-        with open(os.path.join(path, f'{categorie_name}.csv'), 'w', encoding='utf-8-sig') as file:
-            headers = ['product_page_url', 'universal_product_code', 'title', 'price_including_tax',
-                       'price_excluding_tax', 'number_available', 'product_description', 'category', 'review_rating', 'image_url']
-            file.write(';'.join(headers) + '\n')
-
         # Récupération des urls des pages de chaque catégorie
-        category_url = url_base + category.find('a')['href']
+        category_url = URL_BASE + category.find('a')['href']
         categories_url = category_url.split(',')
-        next_botton = get_soup(category_url).find('li', class_='next')
-        while next_botton:
-            page = category_url.replace(
-                'index.html', '')+(next_botton.find('a')['href'])
-            next_botton = get_soup(page).find('li', class_='next')
-            categories_url.append(page)
-            continue
-            break
+    return categories_url
 
-        # Récupération des urls des livres des pages de chaque catégorie
-        for page in categories_url:
-            books = get_soup(page).find_all(
-                'div', class_="image_container")
-            for book in books:
-                book_url = replace_special_characters(
-                    ('https://books.toscrape.com/catalogue/' + book.find('a')['href']), special_characters)
 
-                # Obtenir les données demandées pour chaque livre
-                soup = get_soup(book_url)
-                data = soup.find_all('td')
-                product_page_url = book_url
-                universal_product_code = data[0].text
-                title = replace_special_characters(
-                    (soup.find('h1').text), '/"-')
-                price_including_tax = data[3].text
-                price_excluding_tax = data[2].text
-                number_available = data[5].text
+def get_book_urls_from_categories(categories_url):
+    """Fonction pour récupérer les liens des livres à partir des catégories"""
+    book_urls = []
+    category_url = get_category_urls(categories_url)
+    next_botton = get_soup(category_url).find('li', class_='next')
+    while next_botton:
+        page = slugify(category_url) + (next_botton.find('a')['href'])
+        next_botton = get_soup(page).find('li', class_='next')
+        categories_url.append(page)
+        continue
+        break
+    # Récupération des urls des livres des pages de chaque catégorie
+    for page in categories_url:
+        books = get_soup(page).find_all(
+            'div', class_="image_container")
+        for book in books:
+            book = slugify(
+                ('https://books.toscrape.com/catalogue/' + book.find('a')['href']))
+            book_urls.append(book)
+        return book_urls
 
-                # Recherche si description livre et remplacer certains caractères
-                product_description = soup.find(
-                    'div', id='product_description')
-                if product_description is None:
-                    product_description = 'No description'
-                else:
-                    product_description = replace_special_characters(
-                        (soup.find_all('p')[3].text), special_characters[1])
 
-                # Rechercher la note de cahque livre et la transformer en chiffre
-                review_rating = star_rating[soup.find(
-                    class_="star-rating")['class'][1]]
+def get_book_data(url):
+    # Obtenir les données demandées pour chaque livre
+    soup = get_soup(url)
+    category = soup.find_all('li')[2]
+    tds = soup.find_all(["td"])
+    upc = tds[0].text
+    universal_product_code = tds[0].text
+    title = (soup.find('h1').text)
+    price_including_tax = tds[3].text
+    price_excluding_tax = tds[2].text
+    number_available = tds[5].text
+    product_description = soup.find(
+        'div', id='product_description')
+    if product_description is None:
+        product_description = 'No description'
+    else:
+        product_description = product_description.find_next_sibling(
+            "p").text
+    review_rating = soup.find("p", class_="star-rating")
+    replace_title = slugify(soup.find('h1').text)
 
-                image_url = replace_special_characters(
-                    (url_base + soup.find('img')['src']), special_characters)
+    product_list = {
+        'product_page_url': url,
+        'title': title,
+        'upc': upc,
+        'universal_product_code': universal_product_code,
+        'price_including_tax': price_including_tax,
+        'price_excluding_tax': price_excluding_tax,
+        'number_available': number_available,
+        'review_rating': review_rating['class'][1],
+        'product_description': product_description,
+        'category': category.a.text,
+        'url_image': URL_BASE + soup.img['src'][6:],
+        'img_file': f"{IMG_DIR}/{slugify(category.a.text)}/{replace_title}.jpg",
+    }
+    return product_list
 
-                product_list = [product_page_url, universal_product_code, title, price_including_tax, price_excluding_tax,
-                                number_available, product_description, categorie_name, review_rating, image_url]
 
-                # Ajouter dans fichiers csv crées précédemment les données de chaque livre
-                with open(os.path.join(path, f'{categorie_name}.csv'), 'a', encoding='utf-8-sig') as file:
-                    file.write(';'.join(product_list) + '\n')
+def save_images(file, image):
+    """Fonction pour sauvegarder une image"""
+    with open(f'{file}', 'wb') as f:
+        f.write(image)
 
-                # télécharger les images dans répertoire de chaque catégorie
-                with open(os.path.join(path, f'{title}.jpg'), 'ab') as file:
-                    image = requests.get(image_url).content
-                    file.write(image)
+
+def save_book_data_to_csv(books_data):
+    """Fonction pour sauvegarder les données des livres dans un fichier csv"""
+    category = slugify(books_data[0].get('category'))
+    header = books_data[0].keys()
+    with open(f'{CSV_DIR}{category}.csv', 'w', encoding='utf-8-sig') as csvfile:
+        writer = csv.DictWriter(csvfile, filedsnames=header, dialect='excel')
+        writer.writeheader()
+        writer.writerows(books_data)
+
+
+def main():
+    "Fonction principale"
+    Path(CSV_DIR).mkdir(parents=True, exist_ok=True)
+
+    category_urls = get_category_urls(URL_BASE)
+    for category_url in category_urls:
+        book_data = []
+        book_urls = get_book_urls_from_categories(category_url)
+
+        for book_url in book_urls:
+            book_data = get_book_data(book_url)
+            book_data.append(book_data)
+
+        images = []
+        function = []
+        images_files = []
+        for book in book_data:
+            function.append(book.get('img_url'))
+            image_file = (
+                f"{IMG_DIR}{slugify(book.get('category'))}/"
+                f"{slugify(book.get('title'))}.jpg"
+            )
+            images_files.append(image_file)
+
+        category = book_data[0].get('category')
+        Path(f'{IMG_DIR + category}').mkdir(parents=True, exist_ok=True)
+        for image in images:
+            image = save_images(image)
+
+        save_book_data_to_csv(book_data)
+        return book_data
 
 
 if __name__ == "__main__":
-    catgeories = get_category_urls()
-    print(catgeories)
-
-
-"""Traceback (most recent call last):
-  File "i:\Dev\OC\P2_OC\main.py", line 104, in <module>
-    with open(os.path.join(path, f'{title}.jpg'), 'ab') as file:
-OSError: [Errno 22] Invalid argument: 'Sequential Art\\orange: The Complete Collection 1 (orange: The Complete 
-Collection #1).jpg'
-PS I:\Dev\OC\P2_OC> 
-"""
+    main()
