@@ -124,17 +124,17 @@ def main():
             book_data = get_book_data(book_url)
             book_data.append(book_data)
 
-        images = []
-        function = []
+        img_url = []
         images_files = []
         for book in book_data:
-            function.append(book.get('img_url'))
+            img_url.append(book.get('img_url'))
             image_file = (
                 f"{IMG_DIR}{slugify(book.get('category'))}/"
                 f"{slugify(book.get('title'))}.jpg"
             )
             images_files.append(image_file)
 
+        images = []
         category = book_data.get('category')
         Path(f'{IMG_DIR + category}').mkdir(parents=True, exist_ok=True)
         for image in images:
