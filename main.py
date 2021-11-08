@@ -19,26 +19,29 @@ def get_soup(url):
     return BeautifulSoup(request.content, 'html.parser')
 
 
-def get_category_urls(categories_url):
+def get_category_urls(categories):
     """Fonction pour récupérer les liens de chaque catégories"""
-    categories_url = []
     categories = get_soup(URL_BASE).find_all('ul')[
         2].find_all('li')
 
     for category in categories:
         # Récupération des urls des pages de chaque catégorie
         category_url = URL_BASE + category.find('a')['href']
-        categories_url = category_url.split(',')
-    return categories_url
+    return category_url
 
 
-def get_book_urls_from_categories(categories_url):
+def get_book_urls_from_categories(category_url):
     """Fonction pour récupérer les liens des livres à partir des catégories"""
     book_urls = []
-    category_url = get_category_urls(categories_url)
+    categories_url = []
+
+    category_url = get_category_urls(category_url)
+    categories_url = category_url.split(',')
     next_botton = get_soup(category_url).find('li', class_='next')
+    #category_url = ' '.join(map(str, category_url))
     while next_botton:
         page = slugify(category_url) + (next_botton.find('a')['href'])
+        #page2 =  list(page.split("-"))
         next_botton = get_soup(page).find('li', class_='next')
         categories_url.append(page)
         continue
@@ -55,7 +58,7 @@ def get_book_urls_from_categories(categories_url):
 
 
 def get_book_data(url):
-    # Obtenir les données demandées pour chaque livre
+    """Fonction pour obtenir les données demandées pour chaque livre"""
     soup = get_soup(url)
     category = soup.find_all('li')[2]
     tds = soup.find_all(["td"])
@@ -100,8 +103,8 @@ def save_images(file, image):
 
 def save_book_data_to_csv(books_data):
     """Fonction pour sauvegarder les données des livres dans un fichier csv"""
-    category = slugify(books_data[0].get('category'))
-    header = books_data[0].keys()
+    category = slugify(books_data.get('category'))
+    header = books_data.keys()
     with open(f'{CSV_DIR}{category}.csv', 'w', encoding='utf-8-sig') as csvfile:
         writer = csv.DictWriter(csvfile, filedsnames=header, dialect='excel')
         writer.writeheader()
@@ -132,7 +135,7 @@ def main():
             )
             images_files.append(image_file)
 
-        category = book_data[0].get('category')
+        category = book_data.get('category')
         Path(f'{IMG_DIR + category}').mkdir(parents=True, exist_ok=True)
         for image in images:
             image = save_images(image)
