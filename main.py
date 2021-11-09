@@ -7,6 +7,7 @@ from slugify import slugify
 URL_BASE = "http://books.toscrape.com/"
 IMG_DIR = "data/img/"
 CSV_DIR = "data/csv/"
+category_mystery_url = "https://books.toscrape.com/catalogue/category/books/mystery_3/index.html"
 
 
 def get_soup(url):
@@ -19,46 +20,59 @@ def get_soup(url):
     return BeautifulSoup(request.content, 'html.parser')
 
 
-def get_category_urls(categories):
-    """Fonction pour récupérer les liens de chaque catégories"""
+def get_category_urls(categories_url: list[str]) -> list:
+    """Retourne les liens de chaque catégories"""
+    categories_url = []
     categories = get_soup(URL_BASE).find_all('ul')[
         2].find_all('li')
 
     for category in categories:
         # Récupération des urls des pages de chaque catégorie
         category_url = URL_BASE + category.find('a')['href']
-    return category_url
+        categories_url_replace = category_url.replace("index.html", " ")
+        categories_url.append(categories_url_replace)
+    # print(categories_url)
+    return categories_url
 
 
-def get_book_urls_from_categories(category_url):
-    """Fonction pour récupérer les liens des livres à partir des catégories"""
+def get_book_urls_from_categories(categories_url: list[str]) -> list:
+    """Retourne les liens des livres à partir des catégories"""
     book_urls = []
-    categories_url = []
 
-    category_url = get_category_urls(category_url)
-    categories_url = category_url.split(',')
-    next_botton = get_soup(category_url).find('li', class_='next')
-    #category_url = ' '.join(map(str, category_url))
-    while next_botton:
-        page = slugify(category_url) + (next_botton.find('a')['href'])
-        #page2 =  list(page.split("-"))
-        next_botton = get_soup(page).find('li', class_='next')
-        categories_url.append(page)
-        continue
-        break
-    # Récupération des urls des livres des pages de chaque catégorie
-    for page in categories_url:
-        books = get_soup(page).find_all(
-            'div', class_="image_container")
-        for book in books:
-            book = slugify(
-                ('https://books.toscrape.com/catalogue/' + book.find('a')['href']))
-            book_urls.append(book)
-        return book_urls
+    for catgeory in categories_url:
+        category = get_category_urls(category_mystery_url)
+        soup = get_soup(URL_BASE)
+        h3_balise = soup.find_all('h3')
+
+        for h3 in h3_balise:
+            url = URL_BASE + h3.a['href']
+            book_url_replace = url.replace("index.html", " ")
+            book_urls.append(book_url_replace)
+        # print(book_urls)
+        next_botton = soup.find('li', class_='next')
+        while next_botton:
+            page = next_botton.find('a')['href']
+            next_botton = get_soup(page).find('li', class_='next')
+            book_urls.append(page)
+            print(book_urls)
+            return book_urls
+
+    # for books in categories_url:
+    #     books = get_soup(categories_url).find(
+    #         'div', class_="image_container").a['href']
+    #     print(books)
+    #     next_botton = get_soup(books).find('li', class_='next')
+    #     while next_botton:
+    #         page = books.replace(
+    #     'index.html', '')+(next_botton.find('a')['href'])
+    #         next_botton = get_soup(page).find('li', class_='next')
+    #         book_urls.append(page)
+    #         print(book_urls)
+    #         return book_urls
 
 
-def get_book_data(url):
-    """Fonction pour obtenir les données demandées pour chaque livre"""
+def get_book_data(url) -> dict:
+    """Retourne les données demandées pour chaque livre"""
     soup = get_soup(url)
     category = soup.find_all('li')[2]
     tds = soup.find_all(["td"])
@@ -96,14 +110,14 @@ def get_book_data(url):
 
 
 def save_images(file, image):
-    """Fonction pour sauvegarder une image"""
+    """Sauvegarder une image"""
     with open(f'{file}', 'wb') as f:
         f.write(image)
 
 
 def save_book_data_to_csv(books_data):
-    """Fonction pour sauvegarder les données des livres dans un fichier csv"""
-    category = slugify(books_data.get('category'))
+    """Sauvegarde les données des livres dans un fichier csv"""
+    category = slugify(books_data[0].get('category'))
     header = books_data.keys()
     with open(f'{CSV_DIR}{category}.csv', 'w', encoding='utf-8-sig') as csvfile:
         writer = csv.DictWriter(csvfile, filedsnames=header, dialect='excel')
@@ -114,9 +128,12 @@ def save_book_data_to_csv(books_data):
 def main():
     "Fonction principale"
     Path(CSV_DIR).mkdir(parents=True, exist_ok=True)
-
+    print('Récupération des urls des catégories en cours ...')
     category_urls = get_category_urls(URL_BASE)
+    print('Récupération des urls des livres en cours ...')
+
     for category_url in category_urls:
+        print(f'Traitement de la catégorie {category_url} en cours ...')
         book_data = []
         book_urls = get_book_urls_from_categories(category_url)
 
@@ -127,7 +144,8 @@ def main():
         img_url = []
         images_files = []
         for book in book_data:
-            img_url.append(book.get('img_url'))
+            print(f'Traitement des livres {len(book)} en cours ...')
+            img_url.append(book[0].get('img_url'))
             image_file = (
                 f"{IMG_DIR}{slugify(book.get('category'))}/"
                 f"{slugify(book.get('title'))}.jpg"
@@ -138,6 +156,7 @@ def main():
         category = book_data.get('category')
         Path(f'{IMG_DIR + category}').mkdir(parents=True, exist_ok=True)
         for image in images:
+            print(f'Traitement des images {image} en cours ...')
             image = save_images(image)
 
         save_book_data_to_csv(book_data)
@@ -145,4 +164,7 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    # main()
+    categories = get_category_urls(URL_BASE)
+    books_urls = get_book_urls_from_categories(category_mystery_url)
+    print(books_urls)
