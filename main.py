@@ -1,8 +1,10 @@
+
 import requests
 from bs4 import BeautifulSoup
 import csv
 from pathlib import Path
 from slugify import slugify
+
 
 URL_BASE = "http://books.toscrape.com/"
 IMG_DIR = "data/img/"
@@ -35,40 +37,27 @@ def get_category_urls(categories_url: list[str]) -> list:
     return categories_url
 
 
-def get_book_urls_from_categories(categories_url: list[str]) -> list:
+def get_book_urls_from_categories(page_url: str) -> list:
     """Retourne les liens des livres à partir des catégories"""
     book_urls = []
 
-    for catgeory in categories_url:
-        category = get_category_urls(category_mystery_url)
-        soup = get_soup(URL_BASE)
-        h3_balise = soup.find_all('h3')
+    page = 2
+    url_cat = page_url.replace("index.html", f"page-{page}.html")
+    soup = get_soup(url_cat)
+    h3_balise = soup.find_all('h3')
 
-        for h3 in h3_balise:
-            url = URL_BASE + h3.a['href']
-            book_url_replace = url.replace("index.html", " ")
-            book_urls.append(book_url_replace)
+    for h3 in h3_balise:
+        url = URL_BASE + h3.a['href']
+        book_url_replace = url.replace("index.html", " ")
+        book_urls.append(book_url_replace)
         # print(book_urls)
-        next_botton = soup.find('li', class_='next')
-        while next_botton:
-            page = next_botton.find('a')['href']
-            next_botton = get_soup(page).find('li', class_='next')
-            book_urls.append(page)
-            print(book_urls)
-            return book_urls
-
-    # for books in categories_url:
-    #     books = get_soup(categories_url).find(
-    #         'div', class_="image_container").a['href']
-    #     print(books)
-    #     next_botton = get_soup(books).find('li', class_='next')
-    #     while next_botton:
-    #         page = books.replace(
-    #     'index.html', '')+(next_botton.find('a')['href'])
-    #         next_botton = get_soup(page).find('li', class_='next')
-    #         book_urls.append(page)
-    #         print(book_urls)
-    #         return book_urls
+    next_botton = soup.find('li', class_='next')
+    while next_botton:
+        pages = next_botton.find('a')['href']
+        next_botton = get_soup(pages).find('li', class_='next')
+        book_urls.append(pages)
+        # print(book_urls)
+        return book_urls
 
 
 def get_book_data(url) -> dict:
@@ -119,6 +108,7 @@ def save_book_data_to_csv(books_data):
     """Sauvegarde les données des livres dans un fichier csv"""
     category = slugify(books_data[0].get('category'))
     header = books_data.keys()
+    # header = ["product_page_url","universal_ product_code (upc)","title" ,"price_including_tax","price_excluding_tax" ,"number_available","product_description","category","review_rating","image_url"]
     with open(f'{CSV_DIR}{category}.csv', 'w', encoding='utf-8-sig') as csvfile:
         writer = csv.DictWriter(csvfile, filedsnames=header, dialect='excel')
         writer.writeheader()
@@ -165,6 +155,6 @@ def main():
 
 if __name__ == "__main__":
     # main()
-    categories = get_category_urls(URL_BASE)
+    #categories = get_category_urls(URL_BASE)
     books_urls = get_book_urls_from_categories(category_mystery_url)
     print(books_urls)
