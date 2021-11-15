@@ -16,7 +16,7 @@ category_mystery_url = "https://books.toscrape.com/catalogue/category/books/myst
 
 def get_soup(url):
     """Fonction pour appeler et analyser une page Web HTML """
-    url = "http://books.toscrape.com/"
+    url = "https://books.toscrape.com/index.html"
     request = requests.get(url)
     if not request.ok:
         print("Obtenu une page d'erreur")
@@ -43,9 +43,9 @@ def get_book_urls_from_categories(page_url: str) -> list:
     """Retourne les liens des livres à partir des catégories"""
     book_urls = []
 
-    page = 2
-    url_cat = page_url.replace("index.html", f"page-{page}.html")
-    soup = get_soup(url_cat)
+    # page = 2
+    # url_cat = page_url.replace("index.html", f"page-{page}.html")
+    soup = get_soup(page_url)
     h3_balise = soup.find_all('h3')
 
     for h3 in h3_balise:
