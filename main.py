@@ -4,6 +4,8 @@ from bs4 import BeautifulSoup
 import csv
 from pathlib import Path
 from slugify import slugify
+import urllib
+from urllib.parse import urljoin
 
 
 URL_BASE = "http://books.toscrape.com/"
@@ -47,17 +49,32 @@ def get_book_urls_from_categories(page_url: str) -> list:
     h3_balise = soup.find_all('h3')
 
     for h3 in h3_balise:
-        url = URL_BASE + h3.a['href']
+        books_urls = h3.a['href']
+        url = urllib.parse.urljoin(URL_BASE, books_urls)
+        print(url)
+
         book_url_replace = url.replace("index.html", " ")
         book_urls.append(book_url_replace)
-        # print(book_urls)
-    next_botton = soup.find('li', class_='next')
-    while next_botton:
-        pages = next_botton.find('a')['href']
-        next_botton = get_soup(pages).find('li', class_='next')
-        book_urls.append(pages)
-        # print(book_urls)
+        print(book_urls)
         return book_urls
+    # next_botton = soup.find('li', class_='next')
+    # while next_botton:
+    #     pages = next_botton.find('a')['href']
+    #     next_botton = get_soup(pages).find('li', class_='next')
+    #     # book_urls.append(pages)
+    #     # print(book_urls)
+    #     return book_urls
+
+
+def get_next_page(soup, url):
+    url = url.replace(url.split('/')[7], '')
+    page = soup.find('ul', attrs={'class': 'pager'})
+    if page.find('li',  attrs={'class': 'next'}):
+        url = url + \
+            str(page.find('li', attrs={'class': 'next'}).find('a')['href'])
+        return url
+    else:
+        return
 
 
 def get_book_data(url) -> dict:
@@ -154,7 +171,7 @@ def main():
 
 
 if __name__ == "__main__":
-    # main()
-    #categories = get_category_urls(URL_BASE)
-    books_urls = get_book_urls_from_categories(category_mystery_url)
-    print(books_urls)
+    main()
+    # #categories = get_category_urls(URL_BASE)
+    # books_urls = get_book_urls_from_categories(category_mystery_url)
+    # print(books_urls)
