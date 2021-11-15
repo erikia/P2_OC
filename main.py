@@ -67,7 +67,7 @@ def get_book_urls_from_categories(page_url: str) -> list:
 
 
 def get_next_page(soup, url):
-    url = url.replace(url.split('/')[7], '')
+    url = url.replace("index.html", '')
     page = soup.find('ul', attrs={'class': 'pager'})
     if page.find('li',  attrs={'class': 'next'}):
         url = url + \
