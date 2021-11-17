@@ -103,10 +103,10 @@ def get_book_data(url) -> dict:
     return product_list
 
 
-def save_images(file, image):
+def save_images(content, name):
     """Sauvegarder une image"""
-    with open(f'{file}', 'wb') as f:
-        f.write(image)
+    with open(f'{name}', 'wb') as f:
+        f.write(content)
 
 
 def save_book_data_to_csv(books_data):
@@ -154,7 +154,7 @@ def main():
         Path(f'{IMG_DIR + category}').mkdir(parents=True, exist_ok=True)
         for image in images:
             print(f'Traitement des images {image} en cours ...')
-            image = save_images(image)
+            image = save_images('my_image', images_files)
 
         save_book_data_to_csv(books_data)
         return books_data
