@@ -16,7 +16,6 @@ category_mystery_url = "https://books.toscrape.com/catalogue/category/books/myst
 
 def get_soup(url):
     """Fonction pour appeler et analyser une page Web HTML """
-    url = "https://books.toscrape.com/index.html"
     request = requests.get(url)
     if not request.ok:
         print("Obtenu une page d'erreur")
@@ -32,49 +31,38 @@ def get_category_urls(categories_url: list[str]) -> list:
 
     for category in categories:
         # Récupération des urls des pages de chaque catégorie
-        category_url = URL_BASE + category.find('a')['href']
-        categories_url_replace = category_url.replace("index.html", " ")
-        categories_url.append(categories_url_replace)
+        # category_url = URL_BASE + category.find('a')['href']
+        # categories_url_replace = category_url.replace("index.html", " ")
+        categorys = category.find('a')['href']
+        category_url = urllib.parse.urljoin(URL_BASE, categorys)
+        categories_url.append(category_url)
     # print(categories_url)
     return categories_url
 
 
 def get_book_urls_from_categories(page_url: str) -> list:
-    """Retourne les liens des livres à partir des catégories"""
     book_urls = []
 
-    # page = 2
-    # url_cat = page_url.replace("index.html", f"page-{page}.html")
-    soup = get_soup(page_url)
-    h3_balise = soup.find_all('h3')
+    next_button = True
+    page = 1
+    while next_button:
+        if page == 1:
+            url = page_url
+        else:
+            url = page_url.replace("index.html", f"page-{page}.html")
 
-    for h3 in h3_balise:
-        books_urls = h3.a['href']
-        url = urllib.parse.urljoin(URL_BASE, books_urls)
-        print(url)
+        page += 1
+        soup = get_soup(url)
+        h3_balise = soup.find_all('h3')
 
-        book_url_replace = url.replace("index.html", " ")
-        book_urls.append(book_url_replace)
-        print(book_urls)
-        return book_urls
-    # next_botton = soup.find('li', class_='next')
-    # while next_botton:
-    #     pages = next_botton.find('a')['href']
-    #     next_botton = get_soup(pages).find('li', class_='next')
-    #     # book_urls.append(pages)
-    #     # print(book_urls)
-    #     return book_urls
+        for h3 in h3_balise:
+            books_urls = h3.a['href']
+            link_url = urllib.parse.urljoin(url, books_urls)
+            book_urls.append(link_url)
 
-
-def get_next_page(soup, url):
-    url = url.replace("index.html", '')
-    page = soup.find('ul', attrs={'class': 'pager'})
-    if page.find('li',  attrs={'class': 'next'}):
-        url = url + \
-            str(page.find('li', attrs={'class': 'next'}).find('a')['href'])
-        return url
-    else:
-        return
+        next_button = soup.find('li', class_='next')
+        print(len(book_urls))
+    return book_urls
 
 
 def get_book_data(url) -> dict:
@@ -141,12 +129,12 @@ def main():
 
     for category_url in category_urls:
         print(f'Traitement de la catégorie {category_url} en cours ...')
-        book_data = []
+        books_data = []
         book_urls = get_book_urls_from_categories(category_url)
 
         for book_url in book_urls:
             book_data = get_book_data(book_url)
-            book_data.append(book_data)
+            books_data.append(book_data)
 
         img_url = []
         images_files = []
@@ -160,7 +148,7 @@ def main():
             images_files.append(image_file)
 
         images = []
-        category = book_data.get('category')
+        category = book_data[0].get('category')
         Path(f'{IMG_DIR + category}').mkdir(parents=True, exist_ok=True)
         for image in images:
             print(f'Traitement des images {image} en cours ...')
