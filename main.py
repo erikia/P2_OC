@@ -30,17 +30,15 @@ def get_category_urls(categories_url: list[str]) -> list:
         2].find_all('li')
 
     for category in categories:
-        # Récupération des urls des pages de chaque catégorie
-        # category_url = URL_BASE + category.find('a')['href']
-        # categories_url_replace = category_url.replace("index.html", " ")
-        categorys = category.find('a')['href']
-        category_url = urllib.parse.urljoin(URL_BASE, categorys)
+        category_href = category.find('a')['href']
+        category_url = urllib.parse.urljoin(URL_BASE, category_href)
         categories_url.append(category_url)
     # print(categories_url)
     return categories_url
 
 
 def get_book_urls_from_categories(page_url: str) -> list:
+    """Retourne les liens des livres pour chaque catégories"""
     book_urls = []
 
     next_button = True
@@ -61,7 +59,7 @@ def get_book_urls_from_categories(page_url: str) -> list:
             book_urls.append(link_url)
 
         next_button = soup.find('li', class_='next')
-        print(len(book_urls))
+
     return book_urls
 
 
@@ -76,6 +74,8 @@ def get_book_data(url) -> dict:
     price_including_tax = tds[3].text
     price_excluding_tax = tds[2].text
     number_available = tds[5].text
+    url_image = URL_BASE + soup.img['src']
+    # print(url_image)
     product_description = soup.find(
         'div', id='product_description')
     if product_description is None:
@@ -97,7 +97,7 @@ def get_book_data(url) -> dict:
         'review_rating': review_rating['class'][1],
         'product_description': product_description,
         'category': category.a.text,
-        'url_image': URL_BASE + soup.img['src'][6:],
+        'url_image': url_image,
         'img_file': f"{IMG_DIR}/{slugify(category.a.text)}/{replace_title}.jpg",
     }
     return product_list
@@ -112,10 +112,10 @@ def save_images(file, image):
 def save_book_data_to_csv(books_data):
     """Sauvegarde les données des livres dans un fichier csv"""
     category = slugify(books_data[0].get('category'))
-    header = books_data.keys()
+    header = books_data[0].keys()
     # header = ["product_page_url","universal_ product_code (upc)","title" ,"price_including_tax","price_excluding_tax" ,"number_available","product_description","category","review_rating","image_url"]
     with open(f'{CSV_DIR}{category}.csv', 'w', encoding='utf-8-sig') as csvfile:
-        writer = csv.DictWriter(csvfile, filedsnames=header, dialect='excel')
+        writer = csv.DictWriter(csvfile, fieldnames=header, dialect='excel')
         writer.writeheader()
         writer.writerows(books_data)
 
@@ -138,9 +138,11 @@ def main():
 
         img_url = []
         images_files = []
-        for book in book_data:
+        for book in books_data:
             print(f'Traitement des livres {len(book)} en cours ...')
-            img_url.append(book[0].get('img_url'))
+            url_image = book.get('url_image', {})
+            url = get_soup(url_image)
+            img_url.append(url)
             image_file = (
                 f"{IMG_DIR}{slugify(book.get('category'))}/"
                 f"{slugify(book.get('title'))}.jpg"
@@ -148,18 +150,15 @@ def main():
             images_files.append(image_file)
 
         images = []
-        category = book_data[0].get('category')
+        category = books_data[0].get('category')
         Path(f'{IMG_DIR + category}').mkdir(parents=True, exist_ok=True)
         for image in images:
             print(f'Traitement des images {image} en cours ...')
             image = save_images(image)
 
-        save_book_data_to_csv(book_data)
-        return book_data
+        save_book_data_to_csv(books_data)
+        return books_data
 
 
 if __name__ == "__main__":
     main()
-    # #categories = get_category_urls(URL_BASE)
-    # books_urls = get_book_urls_from_categories(category_mystery_url)
-    # print(books_urls)
