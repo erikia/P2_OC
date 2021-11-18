@@ -1,4 +1,3 @@
-
 import requests
 from bs4 import BeautifulSoup
 import csv
@@ -75,7 +74,6 @@ def get_book_data(url) -> dict:
     price_excluding_tax = tds[2].text
     number_available = tds[5].text
     url_image = URL_BASE + soup.img['src']
-    # print(url_image)
     product_description = soup.find(
         'div', id='product_description')
     if product_description is None:
@@ -103,10 +101,11 @@ def get_book_data(url) -> dict:
     return product_list
 
 
-def save_images(content, name):
+def save_images(content, filename):
     """Sauvegarder une image"""
-    with open(f'{name}', 'wb') as f:
+    with open(f'{filename}', 'wb') as f:
         f.write(content)
+        # urllib.request.urlopen()
 
 
 def save_book_data_to_csv(books_data):
@@ -122,6 +121,7 @@ def save_book_data_to_csv(books_data):
 
 def main():
     "Fonction principale"
+    loop = 0
     Path(CSV_DIR).mkdir(parents=True, exist_ok=True)
     print('Récupération des urls des catégories en cours ...')
     category_urls = get_category_urls(URL_BASE)
@@ -138,27 +138,32 @@ def main():
 
         img_url = []
         images_files = []
+        # for i in range(1):
         for book in books_data:
             print(f'Traitement des livres {len(book)} en cours ...')
             url_image = book.get('url_image', {})
-            url = get_soup(url_image)
+            url = requests.get(url_image)
             img_url.append(url)
             image_file = (
                 f"{IMG_DIR}{slugify(book.get('category'))}/"
                 f"{slugify(book.get('title'))}.jpg"
             )
             images_files.append(image_file)
-
-        images = []
-        category = books_data[0].get('category')
-        Path(f'{IMG_DIR + category}').mkdir(parents=True, exist_ok=True)
-        for image in images:
-            print(f'Traitement des images {image} en cours ...')
-            image = save_images('my_image', images_files)
+            # print(images_files)
+            category = books_data[0].get('category')
+            Path(f'{IMG_DIR + category}').mkdir(parents=True, exist_ok=True)
+            for image in images_files:
+                print(f'Traitement des images {image} en cours ...')
+                response = requests.get(url_image)
+                image = save_images(response.content, image_file)
+                # print(str(len(image)) + "images trouvées.")
 
         save_book_data_to_csv(books_data)
-        return books_data
+        loop += 1
+        if loop > 1:
+            return
 
 
 if __name__ == "__main__":
+    # for i in range(51):
     main()
