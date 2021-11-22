@@ -114,56 +114,54 @@ def save_book_data_to_csv(books_data):
     header = books_data[0].keys()
     # header = ["product_page_url","universal_ product_code (upc)","title" ,"price_including_tax","price_excluding_tax" ,"number_available","product_description","category","review_rating","image_url"]
     with open(f'{CSV_DIR}{category}.csv', 'w', encoding='utf-8-sig') as csvfile:
-        writer = csv.DictWriter(csvfile, fieldnames=header, dialect='excel')
+        writer = csv.DictWriter(
+            csvfile, fieldnames=header, dialect='excel', delimiter=' ', quotechar='|')
         writer.writeheader()
         writer.writerows(books_data)
 
 
 def main():
     "Fonction principale"
-    loop = 0
+    # loop = 0
     Path(CSV_DIR).mkdir(parents=True, exist_ok=True)
     print('Récupération des urls des catégories en cours ...')
     category_urls = get_category_urls(URL_BASE)
     print('Récupération des urls des livres en cours ...')
 
-    for category_url in category_urls:
-        print(f'Traitement de la catégorie {category_url} en cours ...')
-        books_data = []
-        book_urls = get_book_urls_from_categories(category_url)
+    for i in range(len(category_urls)):
+        for category_url in category_urls:
+            print(f'Traitement de la catégorie {category_url} en cours ...')
+            books_data = []
+            book_urls = get_book_urls_from_categories(category_url)
 
-        for book_url in book_urls:
-            book_data = get_book_data(book_url)
-            books_data.append(book_data)
+            for book_url in book_urls:
+                book_data = get_book_data(book_url)
+                books_data.append(book_data)
 
-        img_url = []
-        images_files = []
-        # for i in range(1):
-        for book in books_data:
-            print(f'Traitement des livres {len(book)} en cours ...')
-            url_image = book.get('url_image', {})
-            url = requests.get(url_image)
-            img_url.append(url)
-            image_file = (
-                f"{IMG_DIR}{slugify(book.get('category'))}/"
-                f"{slugify(book.get('title'))}.jpg"
-            )
-            images_files.append(image_file)
-            # print(images_files)
-            category = books_data[0].get('category')
-            Path(f'{IMG_DIR + category}').mkdir(parents=True, exist_ok=True)
-            for image in images_files:
-                print(f'Traitement des images {image} en cours ...')
+            img_url = []
+            images_files = []
+
+            for book in books_data:
+                booktitle = slugify(book.get('title'))
+                print(f'Traitement du livre {booktitle} en cours ...')
+                url_image = book.get('url_image', {})
+                image_file = (
+                    f"{IMG_DIR}{slugify(book.get('category'))}/"
+                    f"{slugify(book.get('title'))}.jpg"
+                )
+                category = slugify(books_data[0].get('category'))
+                Path(f'{IMG_DIR + category}').mkdir(parents=True, exist_ok=True)
+                print(f'Traitement de l\'image de {booktitle} en cours ...')
                 response = requests.get(url_image)
                 image = save_images(response.content, image_file)
-                # print(str(len(image)) + "images trouvées.")
 
-        save_book_data_to_csv(books_data)
-        loop += 1
-        if loop > 1:
-            return
+            save_book_data_to_csv(books_data)
+        return (i)
+        # loop += 1
+        # # 50 categories
+        # if loop > 50:
+        #     return
 
 
 if __name__ == "__main__":
-    # for i in range(51):
     main()
