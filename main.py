@@ -4,13 +4,11 @@ import csv
 from pathlib import Path
 from slugify import slugify
 import urllib
-from urllib.parse import urljoin
 
 
 URL_BASE = "http://books.toscrape.com/"
 IMG_DIR = "data/img/"
 CSV_DIR = "data/csv/"
-category_mystery_url = "https://books.toscrape.com/catalogue/category/books/mystery_3/index.html"
 
 
 def get_soup(url):
@@ -105,14 +103,12 @@ def save_images(content, filename):
     """Sauvegarder une image"""
     with open(f'{filename}', 'wb') as f:
         f.write(content)
-        # urllib.request.urlopen()
 
 
 def save_book_data_to_csv(books_data):
     """Sauvegarde les données des livres dans un fichier csv"""
     category = slugify(books_data[0].get('category'))
     header = books_data[0].keys()
-    # header = ["product_page_url","universal_ product_code (upc)","title" ,"price_including_tax","price_excluding_tax" ,"number_available","product_description","category","review_rating","image_url"]
     with open(f'{CSV_DIR}{category}.csv', 'w', encoding='utf-8-sig') as csvfile:
         writer = csv.DictWriter(
             csvfile, fieldnames=header, dialect='excel', delimiter=' ', quotechar='|')
@@ -153,7 +149,7 @@ def main():
                 Path(f'{IMG_DIR + category}').mkdir(parents=True, exist_ok=True)
                 print(f'Traitement de l\'image de {booktitle} en cours ...')
                 response = requests.get(url_image)
-                image = save_images(response.content, image_file)
+                save_images(response.content, image_file)
 
             save_book_data_to_csv(books_data)
         return (i)
