@@ -9,6 +9,7 @@ import urllib
 URL_BASE = "http://books.toscrape.com/"
 IMG_DIR = "data/img/"
 CSV_DIR = "data/csv/"
+star_rating = {'One': '1', 'Two': '2', 'Three': '3', 'Four': '4', 'Five': '5'}
 
 
 def get_soup(url):
@@ -30,7 +31,6 @@ def get_category_urls(categories_url: list[str]) -> list:
         category_href = category.find('a')['href']
         category_url = urllib.parse.urljoin(URL_BASE, category_href)
         categories_url.append(category_url)
-    # print(categories_url)
     return categories_url
 
 
@@ -66,11 +66,11 @@ def get_book_data(url) -> dict:
     category = soup.find_all('li')[2]
     tds = soup.find_all(["td"])
     upc = tds[0].text
-    universal_product_code = tds[0].text
     title = (soup.find('h1').text)
     price_including_tax = tds[3].text
     price_excluding_tax = tds[2].text
-    number_available = tds[5].text
+    available = tds[5].text
+    number_available = int(''.join(filter(str.isdigit, available)))
     url_image = URL_BASE + soup.img['src']
     product_description = soup.find(
         'div', id='product_description')
@@ -79,18 +79,18 @@ def get_book_data(url) -> dict:
     else:
         product_description = product_description.find_next_sibling(
             "p").text
-    review_rating = soup.find("p", class_="star-rating")
+    review_rating = star_rating[soup.find(
+                class_="star-rating")['class'][1]]
     replace_title = slugify(soup.find('h1').text)
 
     product_list = {
         'product_page_url': url,
         'title': title,
         'upc': upc,
-        'universal_product_code': universal_product_code,
         'price_including_tax': price_including_tax,
         'price_excluding_tax': price_excluding_tax,
         'number_available': number_available,
-        'review_rating': review_rating['class'][1],
+        'review_rating': review_rating,
         'product_description': product_description,
         'category': category.a.text,
         'url_image': url_image,
@@ -111,52 +111,42 @@ def save_book_data_to_csv(books_data):
     header = books_data[0].keys()
     with open(f'{CSV_DIR}{category}.csv', 'w', encoding='utf-8-sig') as csvfile:
         writer = csv.DictWriter(
-            csvfile, fieldnames=header, dialect='excel', delimiter=' ', quotechar='|')
+            csvfile, fieldnames=header, dialect='excel')
         writer.writeheader()
         writer.writerows(books_data)
 
 
 def main():
-    "Fonction principale"
-    # loop = 0
+    """Fonction principale"""
     Path(CSV_DIR).mkdir(parents=True, exist_ok=True)
     print('Récupération des urls des catégories en cours ...')
     category_urls = get_category_urls(URL_BASE)
     print('Récupération des urls des livres en cours ...')
 
-    for i in range(len(category_urls)):
-        for category_url in category_urls:
-            print(f'Traitement de la catégorie {category_url} en cours ...')
-            books_data = []
-            book_urls = get_book_urls_from_categories(category_url)
+    for category_url in category_urls:
+        print(f'Traitement de la catégorie {category_url} en cours ...')
+        books_data = []
+        book_urls = get_book_urls_from_categories(category_url)
 
-            for book_url in book_urls:
-                book_data = get_book_data(book_url)
-                books_data.append(book_data)
+        for book_url in book_urls:
+            book_data = get_book_data(book_url)
+            books_data.append(book_data)
 
-            img_url = []
-            images_files = []
-
-            for book in books_data:
-                booktitle = slugify(book.get('title'))
-                print(f'Traitement du livre {booktitle} en cours ...')
-                url_image = book.get('url_image', {})
-                image_file = (
-                    f"{IMG_DIR}{slugify(book.get('category'))}/"
-                    f"{slugify(book.get('title'))}.jpg"
-                )
-                category = slugify(books_data[0].get('category'))
-                Path(f'{IMG_DIR + category}').mkdir(parents=True, exist_ok=True)
-                print(f'Traitement de l\'image de {booktitle} en cours ...')
-                response = requests.get(url_image)
-                save_images(response.content, image_file)
+        for book in books_data:
+            booktitle = slugify(book.get('title'))
+            print(f'Traitement du livre {booktitle} en cours ...')
+            url_image = book.get('url_image', {})
+            image_file = (
+                f"{IMG_DIR}{slugify(book.get('category'))}/"
+                f"{slugify(book.get('title'))}.jpg"
+            )
+            category = slugify(books_data[0].get('category'))
+            Path(f'{IMG_DIR + category}').mkdir(parents=True, exist_ok=True)
+            print(f'Traitement de l\'image de {booktitle} en cours ...')
+            response = requests.get(url_image)
+            save_images(response.content, image_file)
 
             save_book_data_to_csv(books_data)
-        return (i)
-        # loop += 1
-        # # 50 categories
-        # if loop > 50:
-        #     return
 
 
 if __name__ == "__main__":
