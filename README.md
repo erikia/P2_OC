@@ -17,7 +17,6 @@ Dans ce fichier csv, il sera classé avec ces données :
 * url
 * title
 * upc
-* universal_product_code
 * price_including_tax
 * price_excluding_tax
 * number_available
