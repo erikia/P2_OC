@@ -13,7 +13,7 @@ star_rating = {'One': '1', 'Two': '2', 'Three': '3', 'Four': '4', 'Five': '5'}
 
 
 def get_soup(url):
-    """Fonction pour appeler et analyser une page Web HTML """
+    """Retourne le contenu d'une page Web HTML"""
     request = requests.get(url)
     if not request.ok:
         print("Obtenu une page d'erreur")
@@ -80,7 +80,7 @@ def get_book_data(url) -> dict:
         product_description = product_description.find_next_sibling(
             "p").text
     review_rating = star_rating[soup.find(
-                class_="star-rating")['class'][1]]
+        class_="star-rating")['class'][1]]
     replace_title = slugify(soup.find('h1').text)
 
     product_list = {
@@ -120,7 +120,9 @@ def main():
     """Fonction principale"""
     Path(CSV_DIR).mkdir(parents=True, exist_ok=True)
     print('Récupération des urls des catégories en cours ...')
+
     category_urls = get_category_urls(URL_BASE)
+
     print('Récupération des urls des livres en cours ...')
 
     for category_url in category_urls:
@@ -136,13 +138,12 @@ def main():
             booktitle = slugify(book.get('title'))
             print(f'Traitement du livre {booktitle} en cours ...')
             url_image = book.get('url_image', {})
+            category = slugify(books_data[0].get('category'))
             image_file = (
-                f"{IMG_DIR}{slugify(book.get('category'))}/"
+                f"{IMG_DIR + category}/"
                 f"{slugify(book.get('title'))}.jpg"
             )
-            category = slugify(books_data[0].get('category'))
             Path(f'{IMG_DIR + category}').mkdir(parents=True, exist_ok=True)
-            print(f'Traitement de l\'image de {booktitle} en cours ...')
             response = requests.get(url_image)
             save_images(response.content, image_file)
 
